@@ -7,7 +7,7 @@ from threading import Thread, Event
 from dotenv import load_dotenv
 import tkinter as tk
 from tkinter import messagebox
-from datetime import date
+from datetime import date, datetime
 
 # Cargar las variables de entorno desde el archivo .env
 load_dotenv()
@@ -30,6 +30,10 @@ capture_event = Event()
 
 # Variable global para indicar el estado de autenticación de Fitbit
 fitbit_authenticated = False
+
+# Configuración de la URL de puntos
+POINTS_URL = 'http://localhost:3002/adquired_subattribute/'
+SENSOR_ENDPOINT_ID = '6'
 
 # Función para obtener el ID de usuario desde la API local
 def get_user_id(username, password):
@@ -108,14 +112,35 @@ def calculate_points_and_update_log(calories_out):
     today = date.today().isoformat()
     last_date, last_calories = read_calories_log()
     
-    if last_date != today:
-        # Es un nuevo día, calcular puntos y actualizar el registro
+    if last_date == today:
+        # Es el mismo día, calcular puntos para calorías adicionales
+        additional_calories = calories_out - last_calories
+        if additional_calories > 0:
+            points = additional_calories // 100  # 1 punto por cada 100 calorías adicionales
+            updated_calories = last_calories + additional_calories
+            write_calories_log(today, updated_calories)  # Actualizar el log con las calorías acumuladas
+            return points
+        else:
+            return 0
+    else:
+        # Es un nuevo día, calcular puntos para todas las calorías y reiniciar el log
         points = calories_out // 100  # 1 punto por cada 100 calorías
         write_calories_log(today, calories_out)
         return points
-    else:
-        # Ya se han registrado las calorías para hoy
-        return 0
+
+# Función para enviar los puntos obtenidos a la API
+def send_points_to_server(points):
+    if points > 0:  # Solo enviar si se han obtenido puntos
+        data = {
+            "id_player": userID,
+            "id_subattributes_conversion_sensor_endpoint": SENSOR_ENDPOINT_ID,
+            "new_data": [str(points)]
+        }
+        response = requests.post(POINTS_URL, json=data)
+        if response.status_code == 200:
+            print(f"Puntos enviados exitosamente: {points}")
+        else:
+            print(f"Error al enviar puntos: {response.status_code} - {response.text}")
 
 # Función para capturar datos periódicamente
 def capture_data_periodically():
@@ -139,6 +164,9 @@ def capture_data_periodically():
             # Calcular puntos y actualizar el registro de calorías procesadas
             points = calculate_points_and_update_log(calories_out)
             print(f"Points earned: {points}")
+            
+            # Enviar los puntos obtenidos a la API
+            send_points_to_server(points)
         
         # Esperar 15 minutos antes de la próxima captura
         capture_event.wait(900)
@@ -150,8 +178,9 @@ def start_gui():
         password = password_entry.get()
         global userID
         userID = get_user_id(username, password)
+        print(userID)
         if userID:
-            #messagebox.showinfo("Success", f"User ID obtained: {userID}")
+            messagebox.showinfo("Success", f"User ID obtained: {userID}")
             username_label.pack_forget()
             username_entry.pack_forget()
             password_label.pack_forget()
@@ -185,35 +214,31 @@ def start_gui():
             root.after(1000, check_fitbit_authentication)
 
     def on_closing():
-        capture_event.set()
-        root.destroy()
-        os._exit(0)
-
+        if messagebox.askokcancel("Quit", "Do you want to quit?"):
+            root.destroy()
+            os._exit(0)  # Asegurarse de que todos los hilos se cierren
+    
     root = tk.Tk()
-    root.title("Fitness Data Capture")
+    root.title("Fitbit Data Capture")
 
-    # Aumentar el tamaño de la ventana
     window_width = 400
-    window_height = 300
-    root.geometry(f"{window_width}x{window_height}")
-
-    # Centrar la ventana en la pantalla
+    window_height = 200
     screen_width = root.winfo_screenwidth()
     screen_height = root.winfo_screenheight()
-    position_top = int((screen_height - window_height) / 2)
-    position_right = int((screen_width - window_width) / 2)
-    root.geometry(f"+{position_right}+{position_top}")
+    position_right = int(screen_width / 2 - window_width / 2)
+    position_top = int(screen_height / 2 - window_height / 2)
+    root.geometry(f"{window_width}x{window_height}+{position_right}+{position_top}")
 
     username_label = tk.Label(root, text="Username:")
     username_label.pack()
     username_entry = tk.Entry(root)
     username_entry.pack()
-    
+
     password_label = tk.Label(root, text="Password:")
     password_label.pack()
     password_entry = tk.Entry(root, show='*')
     password_entry.pack()
-    
+
     authenticate_button = tk.Button(root, text="Authenticate", command=authenticate)
     authenticate_button.pack()
 
@@ -223,10 +248,10 @@ def start_gui():
     start_button = tk.Button(root, text="Start Capture", state=tk.DISABLED, command=start_capture)
     start_button.pack()
 
-    root.protocol("WM_DELETE_WINDOW", on_closing)  # Manejo del cierre de ventana
-
-    # Verificar continuamente si la autenticación con Fitbit ha sido exitosa
-    check_fitbit_authentication()
+    root.protocol("WM_DELETE_WINDOW", on_closing)
+    
+    # Comprobar si la autenticación de Fitbit se ha completado
+    root.after(1000, check_fitbit_authentication)
 
     root.mainloop()
 
