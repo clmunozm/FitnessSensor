@@ -1,4 +1,7 @@
 # FitnessSensor
+[![es](https://img.shields.io/badge/lang-es-green.svg)](https://github.com/clmunozm/FitnessSensor/blob/master/misc/README-ES.md)
+[![en](https://img.shields.io/badge/lang-en-blue.svg)](https://github.com/clmunozm/FitnessSensor/blob/master/README.md)
+
 This app allows users to sync their Fitbit physical activity data to receive rewards within video games compatible with the bGames framework. Users can earn points and unlock upgrades in video games based on their daily activity.
 
 ## FitnessSensor Terms of Service
@@ -17,6 +20,3 @@ To provide our services, FitnessSensor will access your Fitbit data, including b
 You agree to:
     * Use the App only for its intended purpose.
     * Ensure that your use of the App complies with all applicable laws and Fitbit's terms of service.
-
-5. Privacy Policy
-Our Privacy Policy, which explains how we handle your data, is incorporated into these Terms. Please review the Privacy Policy to understand how we collect and use your information.
