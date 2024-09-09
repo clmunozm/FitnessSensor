@@ -4,6 +4,18 @@
 
 Esta aplicación permite a los usuarios sincronizar sus datos de actividad física de Fitbit para recibir recompensas dentro de los videojuegos compatibles con el framework de bGames. Los usuarios pueden ganar puntos y desbloquear mejoras dentro de los videojuegos basados en su actividad diaria.
 
+## Requisitos Previos
+* Python `3.12` o superior
+* Cuenta de Fitbit
+* Dispositivo wearable compatible con Fitbit
+* Cuenta de bGames
+
+## Ejecutar con Python
+  Para ejecutar el sensor, utiliza el siguiente comando en la consola dentro del directorio del archivo:
+  ```shell
+  python FitbitSensor.py
+  ```
+
 ## Términos de Servicio de FitnessSensor
 Fecha de Vigencia: 04 de septiembre de 2024
 ¡Bienvenido a FitnessSensor! Estos Términos de Servicio ("Términos") rigen el uso de la aplicación FitnessSensor ("App"). Al usar nuestra App, aceptas estos Términos.

@@ -4,6 +4,18 @@
 
 This app allows users to sync their Fitbit physical activity data to receive rewards within video games compatible with the bGames framework. Users can earn points and unlock upgrades in video games based on their daily activity.
 
+## Prerequisites
+* Python `3.12` or higher
+* Fitbit account
+* Fitbit-compatible wearable device
+* bGames account
+
+## Run with Python
+  To run the sensor, use the following command in the console within the file directory:
+  ```shell
+  python FitbitSensor.py
+  ```
+
 ## FitnessSensor Terms of Service
 Effective Date: September 04, 2024
 Welcome to FitnessSensor! These Terms of Service ("Terms") govern your use of the FitnessSensor application ("App"). By using our App, you agree to these Terms.
