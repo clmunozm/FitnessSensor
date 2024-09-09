@@ -7,7 +7,7 @@ from threading import Thread, Event
 from dotenv import load_dotenv
 import tkinter as tk
 from tkinter import messagebox
-from datetime import date, datetime
+from datetime import date
 
 # Cargar las variables de entorno desde el archivo .env
 load_dotenv()
@@ -142,36 +142,6 @@ def send_points_to_server(points):
         else:
             print(f"Error al enviar puntos: {response.status_code} - {response.text}")
 
-# Función para capturar datos periódicamente
-def capture_data_periodically():
-    while not capture_event.is_set():
-        if access_token:
-            # Obtener datos de actividad del día actual
-            activity_data = get_fitbit_data('activities/date/today')
-            print("Activity Data:")
-            print(activity_data)
-            
-            # Verificar si el token de acceso sigue siendo válido
-            if 'errors' in activity_data and activity_data['errors'][0]['errorType'] == 'invalid_token':
-                messagebox.showerror("Token Error", "Fitbit access token expired or invalid. Please authenticate again.")
-                stop_capture()
-                return
-            
-            # Extraer calorías quemadas del resumen de datos de actividad
-            calories_out = activity_data['summary']['caloriesOut']
-            print(f"Calories Out: {calories_out}")
-            
-            # Calcular puntos y actualizar el registro de calorías procesadas
-            points = calculate_points_and_update_log(calories_out)
-            print(f"Points earned: {points}")
-            
-            # Enviar los puntos obtenidos a la API
-            send_points_to_server(points)
-        
-        # Esperar 15 minutos antes de la próxima captura
-        capture_event.wait(900)
-
-# Interfaz gráfica
 def start_gui():
     def authenticate():
         username = username_entry.get()
@@ -200,11 +170,17 @@ def start_gui():
         capture_event.set()
         start_button.config(text="Start Capture", command=start_capture, state=tk.NORMAL)
         capture_label.config(text="Capture stopped.")
+    
+    def update_capture_data(calories_out, points, new_calories):
+        current_time = time.strftime("%Y-%m-%d %H:%M:%S")
+        title_label.config(text=f"Última vez actualizado: {current_time}")
+        capture_label.config(text=f"Calories: {calories_out}\nNew Calories: {new_calories}\nPoints: {points}", font=('Helvetica', 14, 'bold'))
 
     def check_fitbit_authentication():
         if fitbit_authenticated:
+            title_label.pack(pady=10)  # Muestra el título cuando la captura comienza
             capture_label.config(text="Capturing Fitbit data...")
-            start_button.config(text="Stop Capture", command=stop_capture, state=tk.NORMAL)
+            start_button.pack_forget()  # Elimina el botón de captura
             # Iniciar la captura de datos
             capture_event.clear()
             capture_thread = Thread(target=capture_data_periodically)
@@ -212,7 +188,47 @@ def start_gui():
         else:
             # Volver a verificar después de un corto período de tiempo
             root.after(1000, check_fitbit_authentication)
+    
+    def capture_data_periodically():
+        while not capture_event.is_set():
+            if access_token:
+                # Obtener datos de actividad del día actual
+                activity_data = get_fitbit_data('activities/date/today')
+                print("Activity Data:")
+                print(activity_data)
+                
+                # Verificar si el token de acceso sigue siendo válido
+                if 'errors' in activity_data and activity_data['errors'][0]['errorType'] == 'invalid_token':
+                    messagebox.showerror("Token Error", "Fitbit access token expired or invalid. Please authenticate again.")
+                    stop_capture()
+                    return
+                
+                # Extraer calorías quemadas del resumen de datos de actividad
+                calories_out = activity_data['summary']['caloriesOut']
+                print(f"Calories Out: {calories_out}")
+                
+                # Calcular nuevas calorías desde la última captura
+                last_date, last_calories = read_calories_log()
+                if last_date == date.today().isoformat():
+                    new_calories = calories_out - last_calories
+                else:
+                    new_calories = calories_out  # Todas las calorías son nuevas si es un día nuevo
 
+                print(f"New Calories: {new_calories}")
+                
+                # Calcular puntos y actualizar el registro de calorías procesadas
+                points = calculate_points_and_update_log(calories_out)
+                print(f"Points earned: {points}")
+                
+                # Enviar los puntos obtenidos a la API
+                send_points_to_server(points)
+                
+                # Actualizar la interfaz con los datos capturados
+                update_capture_data(calories_out, points, new_calories)
+            
+            # Esperar 15 minutos antes de la próxima captura
+            capture_event.wait(900)
+    
     def on_closing():
         if messagebox.askokcancel("Quit", "Do you want to quit?"):
             root.destroy()
@@ -221,44 +237,53 @@ def start_gui():
     root = tk.Tk()
     root.title("Fitbit Data Capture")
 
-    window_width = 400
+    window_width = 600
     window_height = 200
     screen_width = root.winfo_screenwidth()
     screen_height = root.winfo_screenheight()
-    position_right = int(screen_width / 2 - window_width / 2)
-    position_top = int(screen_height / 2 - window_height / 2)
-    root.geometry(f"{window_width}x{window_height}+{position_right}+{position_top}")
+
+    position_top = int(screen_height/2 - window_height/2)
+    position_right = int(screen_width/2 - window_width/2)
+
+    root.geometry(f'{window_width}x{window_height}+{position_right}+{position_top}')
 
     username_label = tk.Label(root, text="Username:")
     username_label.pack()
+
     username_entry = tk.Entry(root)
     username_entry.pack()
 
     password_label = tk.Label(root, text="Password:")
     password_label.pack()
-    password_entry = tk.Entry(root, show='*')
+
+    password_entry = tk.Entry(root, show="*")
     password_entry.pack()
 
     authenticate_button = tk.Button(root, text="Authenticate", command=authenticate)
     authenticate_button.pack()
 
-    capture_label = tk.Label(root, text="")
-    capture_label.pack()
-
     start_button = tk.Button(root, text="Start Capture", state=tk.DISABLED, command=start_capture)
     start_button.pack()
 
+    title_label = tk.Label(root, text="", font=('Helvetica', 12))
+    capture_label = tk.Label(root, text="Not capturing data.", font=('Helvetica', 14, 'bold'), justify=tk.CENTER)
+    
+    # Centrando el texto de las calorías y puntos
+    capture_label.pack(pady=20)
+
     root.protocol("WM_DELETE_WINDOW", on_closing)
     
-    # Comprobar si la autenticación de Fitbit se ha completado
     root.after(1000, check_fitbit_authentication)
-
     root.mainloop()
 
-if __name__ == '__main__':
-    # Iniciar la aplicación Flask en un hilo separado
-    server = Thread(target=app.run, kwargs={'debug': False, 'use_reloader': False})
-    server.start()
+# Función para iniciar el servidor Flask en un hilo separado
+def start_flask_server():
+    app.run(port=5000, debug=False)
 
-    # Iniciar la interfaz gráfica
+if __name__ == '__main__':
+    # Iniciar el servidor Flask en un hilo separado
+    flask_thread = Thread(target=start_flask_server)
+    flask_thread.start()
+
+    # Iniciar la interfaz gráfica en el hilo principal
     start_gui()
