@@ -86,6 +86,7 @@ def get_fitbit_data(endpoint):
         'Authorization': f'Bearer {access_token}'
     }
     response = requests.get(f'https://api.fitbit.com/1/user/-/{endpoint}.json', headers=headers)
+    print(response.json())
     return response.json()
 
 # Función para leer el registro de calorías procesadas
@@ -192,8 +193,10 @@ def start_gui():
     def capture_data_periodically():
         while not capture_event.is_set():
             if access_token:
-                # Obtener datos de actividad del día actual
-                activity_data = get_fitbit_data('activities/date/today')
+                # Obtener la fecha actual en formato YYYY-MM-DD
+                current_date = date.today().isoformat()
+                # Obtener datos de actividad de la fecha actual
+                activity_data = get_fitbit_data(f'activities/date/{current_date}')
                 print("Activity Data:")
                 print(activity_data)
                 
